@@ -145,7 +145,8 @@ git config --global core.quotepath false
 git config --global core.autocrlf true
 git config --global core.editor "code --wait"
 
-git remote add origin https://github.com/your-username/anomaly_detection.git
+# git remote add origin https://github.com/nampluskr/anomaly_detection.git
+git remote add origin git@github.com:nampluskr/anomaly_detection.git
 git checkout -b main
 
 git add .
