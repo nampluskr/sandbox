@@ -159,7 +159,7 @@ git commit -m "chore: define project paths"
 git push
 ```
 
-2. 브랜치 생성 및 기능 개발 (테스트 - 구현 - 디버그 - 리팩토링)
+**2. 브랜치 생성 및 기능 개발** (테스트 - 구현 - 디버그 - 리팩토링)
 ```
 git checkout main
 git pull origin main
@@ -186,7 +186,7 @@ git commit -m "refactor: improve structure of <기능> for reusability"
 git push
 ```
 
-3. 브랜치 작업 완료 및 병합
+**3. 브랜치 작업 완료 및 병합**
 ```
 git checkout main
 git pull origin main
