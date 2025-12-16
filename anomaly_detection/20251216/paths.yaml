@@ -1,0 +1,35 @@
+# configs/paths.yaml
+
+# 프로젝트 루트 디렉터리 (projects/anomaly_detection/)
+root_dir: .
+
+# 소스 코드 디렉터리 (Python 패키지 루트)
+source_dir: ${root_dir}/src/anomaly_detection
+
+# 데이터셋 디렉터리
+dataset_dir: ${root_dir}/../datasets
+mvtec_dir: ${dataset_dir}/mvtec
+visa_dir: ${dataset_dir}/visa
+btad_dir: ${dataset_dir}/btad
+
+# 백본 가중치 디렉터리
+backbone_dir: ${root_dir}/../backbones
+
+# 출력 디렉터리
+output_dir: ${root_dir}/../outputs
+checkpoint_dir: ${output_dir}/checkpoints
+result_dir: ${output_dir}/results
+log_dir: ${output_dir}/logs
+anomaly_map_dir: ${output_dir}/anomaly_maps
+
+# 실험 스크립트 디렉터리
+experiment_dir: ${root_dir}/experiments
+
+# 설정 파일 디렉터리
+config_dir: ${root_dir}/configs
+
+# 기본 이미지 크기
+img_size: 256
+
+# 기본 배치 크기
+batch_size: 32
