@@ -1,180 +1,85 @@
-# src/vad_mini/models/components/base_trainer.py
+# experiments/test_trainer_stfpm.py
+import os, sys
+source_dir = os.path.join(os.path.dirname(__file__), "..", "src")
+if source_dir not in sys.path:
+    sys.path.insert(0, source_dir)
 
-from abc import ABC, abstractmethod
-from tqdm import tqdm
-from torchmetrics.classification import BinaryAUROC, BinaryAveragePrecision
-from torchmetrics.functional.classification import binary_roc
+import os
+import numpy as numpy
+import matplotlib.pyplot as plt
+from PIL import Image
 
 import torch
+import torchvision.transforms as T
+
+from vad_mini.utils import set_seed
+from vad_mini.data.datasets import ViSADataset
+from vad_mini.data.dataloaders import get_train_loader, get_test_loader
+from vad_mini.data.transforms import get_train_transform, get_test_transform, get_mask_transform
+
+# from vad_mini.models.stfpm.torch_model import STFPMModel
+# from vad_mini.models.stfpm.loss import STFPMLoss
+# from vad_mini.models.stfpm.anomaly_map import AnomalyMapGenerator
 
 
-class BaseTrainer(ABC):
-    def __init__(self, model, loss_fn, device=None):
-        self.device = device or torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = model.to(self.device)
-        self.loss_fn = loss_fn.to(self.device) if isinstance(loss_fn, torch.nn.Module) else loss_fn
-        self.optimizer = self.configure_optimizers()
+# DATA_DIR = "/mnt/d/deep_learning/datasets/visa"
+DATA_DIR = "/home/namu/myspace/NAMU/datasets/visa"
+CATEGORY = "candle"
+IMG_SIZE = 256
+BATCH_SIZE = 32
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+SEED = 42
 
-        self.global_epoch = 0
-        self.global_step = 0
 
-        self.aucroc = BinaryAUROC().to(self.device)
-        self.aupr = BinaryAveragePrecision().to(self.device)
+if __name__ == "__main__":
 
-    def fit(self, train_loader, num_epochs, valid_loader=None):
-        self.on_fit_start(valid_loader)
-
-        for epoch in range(1, num_epochs + 1):
-
-            self.on_train_start(epoch, num_epochs)
-            train_outputs = self.train(train_loader)
-            self.on_train_end(train_outputs)
-
-            if valid_loader is not None:
-                self.on_validation_start()
-                valid_outputs = self.evaluate(valid_loader)
-                self.on_validation_end(valid_outputs)
-
-        self.on_fit_end()
+    set_seed(SEED)
 
     #######################################################
-    # Hooks
+    ## Load Datste and Dataloader
     #######################################################
 
-    def on_fit_start(self, valid_loader):
-        self.has_valid_loader = valid_loader is not None
-
-    def on_train_start(self, epoch, num_epochs):
-        self.global_epoch += 1
-        self.epoch_info = f"[{epoch:3d}/{num_epochs}]"
-
-    @abstractmethod
-    def training_step(self, batch):
-        raise NotImplementedError
-
-    def on_train_end(self, outputs):
-        self.train_info = ", ".join([f"{k}:{v:.3f}" for k, v in outputs.items()])
-        if not self.has_valid_loader:
-            print(f"{self.epoch_info} {self.train_info}")
-
-    def on_train_batch_start(self, batch, batch_idx):
-        self.global_step += 1
-
-    def on_train_batch_end(self, outputs, batch, batch_idx): pass
-
-    def on_validation_start(self): pass
-
-    def on_validation_end(self, outputs):
-        valid_info = ", ".join([f"{k}:{v:.3f}" for k, v in outputs.items()])
-        print(f"{self.epoch_info} {self.train_info} | (val) {valid_info}")
-
-    def on_validation_batch_start(self, batch, batch_idx): pass
-
-    @abstractmethod
-    def validation_step(self, batch):
-        raise NotImplementedError
-
-    def on_validation_batch_end(self, outputs, batch, batch_idx): pass
-
-    def on_fit_end(self): pass
+    train_dataset = ViSADataset(
+        root_dir=DATA_DIR,
+        category=CATEGORY,
+        split="train",
+        transform=get_train_transform(img_size=IMG_SIZE, normalize=True),
+        mask_transform=get_mask_transform(img_size=IMG_SIZE),
+    )
+    test_dataset = ViSADataset(
+        root_dir=DATA_DIR,
+        category=CATEGORY,
+        split="test",
+        transform=get_test_transform(img_size=IMG_SIZE, normalize=True),
+        mask_transform=get_mask_transform(img_size=IMG_SIZE),
+    )
+    train_loader = get_train_loader(
+        dataset=train_dataset,
+        batch_size=BATCH_SIZE,
+    )
+    test_loader = get_test_loader(
+        dataset=test_dataset,
+        batch_size=BATCH_SIZE // 2,
+    )
 
     #######################################################
-    # Train one epoch
+    ## Train Model
     #######################################################
 
-    @torch.enable_grad()
-    def train(self, dataloader):
-        self.model.train()
-        outputs = {}
-        num_images = 0
+    from vad_mini.models.stfpm.trainer import STFPMTrainer
 
-        with tqdm(dataloader, leave=False, ascii=True) as progress_bar:
-            progress_bar.set_description(f">> Training")
-            for batch_idx, batch in enumerate(progress_bar):
-                self.on_train_batch_start(batch_idx, batch)
+    trainer = STFPMTrainer(backbone="resnet34")
+    train_outputs = trainer.fit(train_loader, num_epochs=10, valid_loader=test_loader)
 
-                batch_size = batch["image"].shape[0]
-                num_images += batch_size
+    threshold = trainer.calibrate_threshold(train_loader)
+    print()
+    print(f">> quantile threshold (99%): {thresholds['99%']:.3f}")
+    print(f">> quantile threshold (97%): {thresholds['97%']:.3f}")
+    print(f">> quantile threshold (95%): {thresholds['95%']:.3f}")
+    print(f">> mean_std threshold (3-sigma): {thresholds['3-sigma']:.3f}")
+    print(f">> mean_std threshold (2-sigma): {thresholds['2-sigma']:.3f}")
+    print(f">> mean_std threshold (1-sigma): {thresholds['1-sigma']:.3f}")
 
-                self.optimizer.zero_grad()
-                batch_outputs = self.training_step(batch)
-                loss = batch_outputs["loss"]
-                loss.backward()
-                self.optimizer.step()
 
-                for name, value in batch_outputs.items():
-                    if isinstance(value, torch.Tensor):
-                        value = value.item()
-                    outputs.setdefault(name, 0.0)
-                    outputs[name] += value * batch_size
+    
 
-                progress_bar.set_postfix({
-                    name: f"{value / num_images:.3f}"
-                    for name, value in outputs.items()
-                })
-                self.on_train_batch_end(batch_outputs, batch_idx, batch)
-
-        return {name: value / num_images for name, value in outputs.items()}
-
-    #######################################################
-    # Validate one epoch
-    #######################################################
-
-    @torch.no_grad()
-    def evaluate(self, dataloader):
-        self.model.eval()
-        self.aucroc.reset()
-        self.aupr.reset()
-
-        all_pred_scores = []
-        all_labels = []
-
-        with tqdm(dataloader, leave=False, ascii=True) as progress_bar:
-            progress_bar.set_description(f">> Validation")
-            for batch in progress_bar:
-                images = batch["image"].to(self.device)
-                labels = batch["label"]
-
-                predictions = self.model(images)
-                pred_scores = predictions["pred_score"].squeeze()
-
-                all_pred_scores.append(pred_scores.cpu())
-                all_labels.append(labels)
-
-        all_pred_scores = torch.cat(all_pred_scores)
-        all_labels = torch.cat(all_labels)
-
-        self.aucroc.update(all_pred_scores, all_labels)
-        self.aupr.update(all_pred_scores, all_labels)
-
-        fpr, tpr, thresholds = binary_roc(all_pred_scores, all_labels)
-        j_scores = tpr - fpr
-
-        return {
-            "aucroc": self.aucroc.compute().item(),
-            "aupr": self.aupr.compute().item(),
-            "threshold": thresholds[torch.argmax(j_scores)].item()
-        }
-
-    @torch.no_grad()
-    def calibrate_threshold(self, dataloader):
-        self.model.eval()
-        all_scores = []
-
-        for batch in dataloader:
-            images = batch["image"].to(self.device)
-            outputs = self.model(images)
-            pred_scores = outputs["pred_score"].squeeze().cpu()
-            all_scores.append(pred_scores)
-
-        all_scores = torch.cat(all_scores)
-
-        thresholds = {}
-        thresholds["99%"] = torch.quantile(all_scores, 0.99).item()
-        thresholds["97%"] = torch.quantile(all_scores, 0.97).item()
-        thresholds["95%"] = torch.quantile(all_scores, 0.95).item()
-        thresholds["3-sigma"] = (all_scores.mean() + 3 * all_scores.std()).item()
-        thresholds["2-sigma"] = (all_scores.mean() + 2 * all_scores.std()).item()
-        thresholds["1-sigma"] = (all_scores.mean() + 1 * all_scores.std()).item()
-
-        return thresholds
