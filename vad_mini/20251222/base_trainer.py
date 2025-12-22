@@ -157,7 +157,7 @@ class BaseTrainer(ABC):
         }
 
     @torch.no_grad()
-    def calibrate_threshold(self, dataloader, method="quantile", quantile=0.97):
+    def calibrate_threshold(self, dataloader, method="quantile", quantile=0.97, sigma=3):
         self.model.eval()
         all_scores = []
 
@@ -172,7 +172,7 @@ class BaseTrainer(ABC):
         if method == "quantile":
             threshold = torch.quantile(all_scores, quantile)
         elif method == "mean_std":
-            threshold = all_scores.mean() + 3 * all_scores.std()
+            threshold = all_scores.mean() + sigma * all_scores.std()
         else:
             raise ValueError("method: 'quantile' or 'mean_std'")
 
