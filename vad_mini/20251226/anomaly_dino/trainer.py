@@ -32,19 +32,15 @@ class AnomalyDINOTrainer(BaseTrainer):
         _ = self.model(images)
         return {"loss": torch.tensor(0.0, requires_grad=True, device=self.device)}
 
-    def on_train_end(self):
-        """훈련 종료 후, 메모리 뱅크 생성"""
-        if not self._memory_bank_built:
-            print("\n>> Building memory bank with collected embeddings...")
-            self.model.fit()  # embedding_store → memory_bank + 코어셋 샘플링
-            print(f">> Memory bank size: {self.model.memory_bank.size(0)}")
-            self._memory_bank_built = True
-        super().on_train_end()
-
     def on_validation_epoch_start(self):
-        """검증 시작 전, 메모리 뱅크 존재 확인"""
+        """검증 시작 전에 메모리 뱅크가 있는지 확인"""
+        if not self._memory_bank_built:
+            print("\n>> Building memory bank before validation...")
+            self.model.fit()
+            self._memory_bank_built = True
+            print(f">> Memory bank size: {self.model.memory_bank.size(0)}")
+
         if self.model.memory_bank.numel() == 0:
-            raise RuntimeError(
-                "Memory bank is empty. Ensure `model.fit()` is called after training."
-            )
+            raise RuntimeError("Memory bank is empty after fit(). Check embedding_store.")
+
         super().on_validation_epoch_start()
