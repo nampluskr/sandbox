@@ -119,20 +119,30 @@ class AnomalyDINOModel(DynamicBufferMixin, nn.Module):
             sampler = KCenterGreedy(embedding=self.memory_bank, sampling_ratio=self.sampling_ratio)
             self.memory_bank = sampler.sample_coreset()
 
+    # def extract_features(self, image_tensor: torch.Tensor) -> torch.Tensor:
+    #     """Extract patch-level feature embeddings from the last transformer layer.
+
+    #     Returns flattened patch tokens excluding CLS and register tokens.
+
+    #     Args:
+    #         image_tensor (torch.Tensor): Input image tensor of shape ``(B, 3, H, W)``.
+
+    #     Returns:
+    #         torch.Tensor: Patch feature embeddings of shape ``(B, N, D)``,
+    #         where ``N`` is the number of patches and ``D`` the feature dimension.
+    #     """
+    #     with torch.inference_mode():
+    #         return self.feature_encoder.get_intermediate_layers(image_tensor, n=1)[0]
+
     def extract_features(self, image_tensor: torch.Tensor) -> torch.Tensor:
-        """Extract patch-level feature embeddings from the last transformer layer.
-
-        Returns flattened patch tokens excluding CLS and register tokens.
-
-        Args:
-            image_tensor (torch.Tensor): Input image tensor of shape ``(B, 3, H, W)``.
-
-        Returns:
-            torch.Tensor: Patch feature embeddings of shape ``(B, N, D)``,
-            where ``N`` is the number of patches and ``D`` the feature dimension.
-        """
         with torch.inference_mode():
-            return self.feature_encoder.get_intermediate_layers(image_tensor, n=1)[0]
+            features = self.feature_encoder.get_intermediate_layers(image_tensor, n=1)[0]
+
+        # Remove register tokens
+        h, w = image_tensor.shape[-2:]
+        num_patches = (h // self.feature_encoder.patch_size) * (w // self.feature_encoder.patch_size)
+        features = features[:, -num_patches:, :]  # registers are at the front
+        return features
 
     @staticmethod
     def compute_background_masks(
@@ -244,11 +254,11 @@ class AnomalyDINOModel(DynamicBufferMixin, nn.Module):
         features = self.extract_features(input_tensor)
 
         if self.masking:
-            features_np = features.detach().cpu().numpy()
+            features_np = features.detach().cpu().float().numpy()
             masks_np = self.compute_background_masks(features_np, grid_size)
             masks = torch.from_numpy(masks_np).to(device)
         else:
-            masks = torch.ones(features.shape[:2], dtype=torch.bool, device=device)
+            masks = torch.ones((b, grid_size[0] * grid_size[1]), dtype=torch.bool, device=device)  # ✅ 강제
 
         features = features[masks]
         features = F.normalize(features, p=2, dim=1)
