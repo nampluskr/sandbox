@@ -244,3 +244,69 @@ class RGBtoXYZConverter:
             print("Warning: No image files found in the source directory.")
 
         print(f"All RGB images have been converted and saved to {self.target_dir} in {self.output_format.upper()} format.")
+
+class DataConverter:
+    def __init__(self, src_dir, target_dir, primaries=None, normalize=False, rotation=0):
+        self.src_dir = src_dir
+        self.target_dir = target_dir
+        self.primaries = primaries or {
+            "W": (0.3127, 0.3290),
+            "R": (0.640, 0.330),
+            "G": (0.300, 0.600),
+            "B": (0.150, 0.060),
+        }
+        self.normalize = normalize
+        os.makedirs(target_dir, exist_ok=True)
+
+    def convert_to_rgb_and_save(self):
+        """Convert XYZ data to RGB images and save as PNG."""
+        self._convert_and_save(mode="rgb")
+
+    def convert_to_luminance_and_save(self):
+        """Extract Y (luminance) channel and save as grayscale PNG."""
+        self._convert_and_save(mode="luminance")
+
+    def _convert_and_save(self, mode):
+        if not os.path.exists(self.src_dir):
+            raise FileNotFoundError(f"Source directory does not exist: {self.src_dir}")
+
+        file_found = False
+        for file_name in os.listdir(self.src_dir):
+            if not file_name.endswith(".npz"):
+                continue
+            file_found = True
+            file_path = os.path.join(self.src_dir, file_name)
+            info = parse_filename(file_name)
+            dimming = info["dimming"]
+
+            try:
+                data = np.load(file_path)
+                if 'data' not in data:
+                    raise KeyError(f"No 'data' key in .npz file: {file_name}")
+                xyz_data = data['data']
+            except Exception as e:
+                raise RuntimeError(f"Failed to load .npz file {file_name}: {e}")
+
+            if xyz_data.ndim != 3 or xyz_data.shape[-1] != 3:
+                raise ValueError(f"Invalid shape for XYZ data in {file_name}: {xyz_data.shape}")
+
+            if self.normalize:
+                y_min, y_max = xyz_data[..., 1].min(), xyz_data[..., 1].max()
+                xyz_data = normalize(xyz_data, vmin=y_min, vmax=y_max)
+
+            if mode == "rgb":
+                rgb_data = XYZ_to_RGB(xyz_data, self.primaries, Y_white=dimming)
+                img_array = (rgb_data * 255).astype(np.uint8)
+                save_name = os.path.splitext(file_name)[0] + ".png"
+                Image.fromarray(img_array).save(os.path.join(self.target_dir, save_name))
+
+            elif mode == "luminance":
+                y_channel = xyz_data[..., 1]  # Y 채널 (휘도)
+                y_normalized = (y_channel / y_channel.max() * 255).astype(np.uint8) if y_channel.max() > 0 else y_channel.astype(np.uint8)
+                save_name = os.path.splitext(file_name)[0] + "_Y.png"
+                Image.fromarray(y_normalized, mode='L').save(os.path.join(self.target_dir, save_name))
+
+        if not file_found:
+            print("Warning: No .npz files found in the source directory.")
+
+        print(f"All files have been saved to {self.target_dir} (mode: {mode}).")
