@@ -14,8 +14,9 @@ from colors import XYZ_to_RGB, XYZ_to_Lab, XYZ_to_Luv, XYZ_to_Yxy
 
 ```python
 def get_uniformity(data):
+    return (data.mean() - data.std() * 3) / (data.mean() + data.std() * 3)
     # return data.min() / data.max()
-    return 1- (data.max() - data.min()) / (data.max() + data.min())
+    # return 1- (data.max() - data.min()) / (data.max() + data.min())
 
 def get_luminance(path):
     data = np.load(path)["data"]
