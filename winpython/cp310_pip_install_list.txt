@@ -1,0 +1,16 @@
+pip install .\torch-2.2.1+cu118-cp310-cp310-win_amd64.whl
+python.exe -m pip install --upgrade pip
+
+pip install .\torchvision-0.17.1+cu118-cp310-cp310-win_amd64.whl
+pip install .\torchaudio-2.2.1+cu118-cp310-cp310-win_amd64.whl
+pip install .\numpy-1.26.4-cp310-cp310-win_amd64.whl
+
+pip install opencv-python==4.10.0.84 (4.9.0.80)
+
+pip install torchmetrics
+pip install timm
+pip install einops
+pip install FrEIA
+pip install omegaconf
+pip install safetensors
+pip install kornia
