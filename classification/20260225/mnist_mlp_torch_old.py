@@ -44,12 +44,12 @@ y_test_onehot = one_hot(y_test, n_classes=10).astype(np.float32)
 
 # 텐서로 이동
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-x_train = torch.tensor(x_train_scaled).to(device)
-y_train = torch.tensor(y_train_onehot).to(device)
+# x_train = torch.tensor(x_train_scaled).float()
+# y_train = torch.tensor(y_train_onehot).to(device)
+# y_train = torch.tensor(y_train).long()
 
 # 가중치 초기화 (requires_grad=True 필수)
 torch.manual_seed(42)
-input_size, hidden_size, output_size = 784, 256, 10
 
 w1 = torch.randn(784, 256).to(device) * 0.01
 b1 = torch.zeros(256).to(device)
@@ -67,7 +67,7 @@ b2.requires_grad_(True)
 
 # 학습 설정
 n_epochs = 10
-batch_size = 32
+batch_size = 128
 learning_rate = 0.01
 
 for epoch in range(1, n_epochs + 1):
@@ -78,21 +78,21 @@ for epoch in range(1, n_epochs + 1):
     indices = torch.randperm(len(x_train))
     for i in range(0, len(x_train), batch_size):
         batch_idx = indices[i:i+batch_size]
-        x = x_train[batch_idx]
-        y = y_train[batch_idx]
+        x = torch.tensor(x_train_scaled[batch_idx]).to(device)
+        y = torch.tensor(y_train_onehot[batch_idx]).to(device)
 
         # 순전파
         z1 = x @ w1 + b1
         a1 = torch.sigmoid(z1)
         z2 = a1 @ w2 + b2
-        out = torch.softmax(z2, dim=1)
+        preds = torch.softmax(z2, dim=1)
 
         # 손실: cross_entropy는 logits과 정수 레이블 필요
         target = y.argmax(dim=1)  # one-hot → class index
         loss = F.cross_entropy(z2, target)
 
         # 정확도
-        acc = accuracy_fn(out, y)
+        acc = accuracy_fn(preds, y)
 
         # 역전파
         loss.backward()  # 그래프 연결 확인
