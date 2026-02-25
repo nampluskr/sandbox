@@ -1,7 +1,10 @@
 import os
 import gzip
 import numpy as np
+
 import torch
+import torch.nn.functional as F
+
 
 def load_mnist_images(data_dir, filename):
     data_path = os.path.join(data_dir, filename)
@@ -9,19 +12,23 @@ def load_mnist_images(data_dir, filename):
         data = np.frombuffer(f.read(), np.uint8, offset=16)
     return data.reshape(-1, 28, 28)
 
+
 def load_mnist_labels(data_dir, filename):
     data_path = os.path.join(data_dir, filename)
     with gzip.open(data_path, 'rb') as f:
         data = np.frombuffer(f.read(), np.uint8, offset=8)
     return data
 
+
 def one_hot(y, n_classes):
     return np.eye(n_classes)[y]
 
-def accuracy(y_pred, y_true):
+
+def accuracy_fn(y_pred, y_true):
     y_pred = y_pred.argmax(dim=1)
     y_true = y_true.argmax(dim=1)
     return torch.eq(y_pred, y_true).float().mean()
+
 
 # 데이터 로드
 data_dir = r"E:\datasets\mnist"
@@ -44,12 +51,19 @@ y_train = torch.tensor(y_train_onehot).to(device)
 torch.manual_seed(42)
 input_size, hidden_size, output_size = 784, 256, 10
 
-w1 = torch.randn(input_size, hidden_size, device=device) * 0.01
+w1 = torch.randn(784, 256).to(device) * 0.01
+b1 = torch.zeros(256).to(device)
+w2 = torch.randn(256, 10).to(device) * 0.01
+b2 = torch.zeros(10).to(device)
+# w3 = torch.randn(128, 10).to(device) * 0.01
+# b3 = torch.zeros(10).to(device)
+
 w1.requires_grad_(True)
-b1 = torch.zeros(hidden_size, device=device, requires_grad=True)
-w2 = torch.randn(hidden_size, output_size, device=device) * 0.01
+b1.requires_grad_(True)
 w2.requires_grad_(True)
-b2 = torch.zeros(output_size, device=device, requires_grad=True)
+b2.requires_grad_(True)
+# w3.requires_grad_(True)
+# b3.requires_grad_(True)
 
 # 학습 설정
 n_epochs = 10
@@ -57,11 +71,11 @@ batch_size = 32
 learning_rate = 0.01
 
 for epoch in range(1, n_epochs + 1):
-    indices = torch.randperm(len(x_train))
     total_loss = 0.0
     total_acc = 0.0
     num_batches = 0
 
+    indices = torch.randperm(len(x_train))
     for i in range(0, len(x_train), batch_size):
         batch_idx = indices[i:i+batch_size]
         x = x_train[batch_idx]
@@ -75,10 +89,10 @@ for epoch in range(1, n_epochs + 1):
 
         # 손실: cross_entropy는 logits과 정수 레이블 필요
         target = y.argmax(dim=1)  # one-hot → class index
-        loss = torch.nn.functional.cross_entropy(z2, target)
+        loss = F.cross_entropy(z2, target)
 
         # 정확도
-        acc = accuracy(out, y)
+        acc = accuracy_fn(out, y)
 
         # 역전파
         loss.backward()  # 그래프 연결 확인
@@ -100,7 +114,6 @@ for epoch in range(1, n_epochs + 1):
         total_acc += acc.item()
         num_batches += 1
 
-    if epoch % (n_epochs // 10) == 0:
-        avg_loss = total_loss / num_batches
-        avg_acc = total_acc / num_batches
-        print(f"[{epoch}/{n_epochs}] loss: {avg_loss:.3f} acc: {avg_acc:.3f}")
+    avg_loss = total_loss / num_batches
+    avg_acc = total_acc / num_batches
+    print(f"[{epoch}/{n_epochs}] loss: {avg_loss:.3f} acc: {avg_acc:.3f}")
