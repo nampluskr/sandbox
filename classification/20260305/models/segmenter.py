@@ -4,65 +4,78 @@ import torch.nn.functional as F
 from torchmetrics import Accuracy, JaccardIndex
 
 
-class UNet(nn.Module):
-    def __init__(self, in_channels=3, out_channels=3):
-        super(UNet, self).__init__()
-        def conv_block(in_ch, out_ch):
-            return nn.Sequential(
-                nn.Conv2d(in_ch, out_ch, 3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(out_ch, out_ch, 3, padding=1),
-                nn.ReLU(inplace=True)
-            )
-
-        self.enc1 = conv_block(in_channels, 64)
-        self.enc2 = conv_block(64, 128)
-        self.enc3 = conv_block(128, 256)
-        self.enc4 = conv_block(256, 512)
-
-        self.pool = nn.MaxPool2d(2)
-        self.bottleneck = conv_block(512, 1024)
-
-        self.upconv4 = nn.ConvTranspose2d(1024, 512, 2, stride=2)
-        self.dec4 = conv_block(1024, 512)
-        self.upconv3 = nn.ConvTranspose2d(512, 256, 2, stride=2)
-        self.dec3 = conv_block(512, 256)
-        self.upconv2 = nn.ConvTranspose2d(256, 128, 2, stride=2)
-        self.dec2 = conv_block(256, 128)
-        self.upconv1 = nn.ConvTranspose2d(128, 64, 2, stride=2)
-        self.dec1 = conv_block(128, 64)
-
-        self.final = nn.Conv2d(64, out_channels, 1)
+class DoubleConv(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.relu1 = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.relu2 = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        e1 = self.enc1(x)   # [B, 64, H, W]
-        p1 = self.pool(e1)
-        e2 = self.enc2(p1)  # [B, 128, H/2, W/2]
-        p2 = self.pool(e2)
-        e3 = self.enc3(p2)  # [B, 256, H/4, W/4]
-        p3 = self.pool(e3)
-        e4 = self.enc4(p3)  # [B, 512, H/8, W/8]
-        p4 = self.pool(e4)
+        x = self.relu1(self.conv1(x))
+        x = self.relu2(self.conv2(x))
+        return x
+
+
+class UNet(nn.Module):
+    def __init__(self, in_channels=3, out_channels=3, base=64):
+        super().__init__()
+        self.enc_block1 = DoubleConv(in_channels, base)
+        self.enc_block2 = DoubleConv(base, base * 2)
+        self.enc_block3 = DoubleConv(base * 2, base * 4)
+        self.enc_block4 = DoubleConv(base * 4, base * 8)
+
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.bottleneck = DoubleConv(base * 8, base * 16)
+
+        self.upconv4 = nn.ConvTranspose2d(base * 16, base * 8, kernel_size=2, stride=2)
+        self.dec_block4 = DoubleConv(base * 16, base * 8)
+
+        self.upconv3 = nn.ConvTranspose2d(base * 8, base * 4, kernel_size=2, stride=2)
+        self.dec_block3 = DoubleConv(base * 8, base * 4)
+
+        self.upconv2 = nn.ConvTranspose2d(base * 4, base * 2, kernel_size=2, stride=2)
+        self.dec_block2 = DoubleConv(base * 4, base * 2)
+
+        self.upconv1 = nn.ConvTranspose2d(base * 2, base, kernel_size=2, stride=2)
+        self.dec_block1 = DoubleConv(base * 2, base)
+
+        self.final_conv = nn.Conv2d(base, out_channels, kernel_size=1)
+
+    def forward(self, x):
+        e1 = self.enc_block1(x)
+        p1 = self.maxpool(e1)
+
+        e2 = self.enc_block2(p1)
+        p2 = self.maxpool(e2)
+
+        e3 = self.enc_block3(p2)
+        p3 = self.maxpool(e3)
+
+        e4 = self.enc_block4(p3)
+        p4 = self.maxpool(e4)
 
         b = self.bottleneck(p4)
 
-        u4 = self.upconv4(b)
-        u4 = torch.cat([u4, e4], dim=1)
-        d4 = self.dec4(u4)
+        d4 = self.upconv4(b)
+        d4 = torch.cat([d4, e4], dim=1)
+        d4 = self.dec_block4(d4)
 
-        u3 = self.upconv3(d4)
-        u3 = torch.cat([u3, e3], dim=1)
-        d3 = self.dec3(u3)
+        d3 = self.upconv3(d4)
+        d3 = torch.cat([d3, e3], dim=1)
+        d3 = self.dec_block3(d3)
 
-        u2 = self.upconv2(d3)
-        u2 = torch.cat([u2, e2], dim=1)
-        d2 = self.dec2(u2)
+        d2 = self.upconv2(d3)
+        d2 = torch.cat([d2, e2], dim=1)
+        d2 = self.dec_block2(d2)
 
-        u1 = self.upconv1(d2)
-        u1 = torch.cat([u1, e1], dim=1)
-        d1 = self.dec1(u1)
-        return self.final(d1)
+        d1 = self.upconv1(d2)
+        d1 = torch.cat([d1, e1], dim=1)
+        d1 = self.dec_block1(d1)
 
+        out = self.final_conv(d1)
+        return out
 
 class Segmenter(nn.Module):
     def __init__(self, model, optimizer=None, device=None, num_classes=3, ignore_index=-1):
