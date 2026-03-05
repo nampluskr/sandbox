@@ -1,0 +1,95 @@
+import sys
+
+ROOT_DIR = "/home/namu/myspace/NAMU/tutorials"
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+import os
+import numpy as np
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+import torchvision.transforms as T
+
+from common.utils import set_seed
+from data.oxford_pets import OxfordPets
+from common.trainer import fit, evaluate
+from models.classifier import CNN, Classifier
+
+
+if __name__ == "__main__":
+    print(f">> {os.path.basename(__file__)}")
+
+    #################################################################
+    # Hyperparameters
+    #################################################################
+    DATA_DIR = "/home/namu/myspace/NAMU/datasets/oxford_pets"
+    NUM_CLASSES = 37
+    SEED = 42
+    BATCH_SIZE = 16
+    LEARNING_RATE = 1e-5
+    NUM_EPOCHS = 10
+    NUM_SAMPLES = 10
+
+    set_seed(SEED)
+
+    #################################################################
+    # Data loading
+    #################################################################
+    train_transform = T.Compose([
+        T.Resize((224, 224)), 
+        T.RandomHorizontalFlip(0.5),
+        T.RandomRotation(degrees=10),
+        T.ToTensor(), 
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    test_transform = T.Compose([
+        T.Resize((224, 224)), 
+        T.ToTensor(), 
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    train_dataset = OxfordPets(DATA_DIR, "train", transform=train_transform)
+    test_dataset = OxfordPets(DATA_DIR, "test", transform=test_transform)
+
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True, num_workers=4)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, pin_memory=True, num_workers=4)
+
+    print(f"\n>> Train Data (Batch):")
+    train_batch = next(iter(train_loader))
+    x, y = train_batch["image"], train_batch["label"]
+    print(f"train images: {x.shape}, {x.dtype}, [{x.min():.2f}, {x.max():.2f}]")
+    print(f"train labels: {y.shape}, {y.dtype}, [{y.min()}, {y.max()}]")
+
+    #################################################################
+    # Modeling
+    #################################################################
+    from torchvision.models import efficientnet_b0
+
+    model = efficientnet_b0(weights=None)
+    BACKBONE_DIR = "/home/namu/myspace/NAMU/backbones"
+    weight_path = os.path.join(BACKBONE_DIR, "efficientnet_b0_rwightman-7f5810bc.pth")
+    state_dict = torch.load(weight_path, map_location='cpu')
+    model.load_state_dict(state_dict, strict=False)
+    model.classifier = nn.Linear(1280, NUM_CLASSES)
+
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    clf = Classifier(model, optimizer=optimizer, num_classes=NUM_CLASSES)    # optimizer, loss_fn, accuracy, device
+
+    print(f"\n>> Training:")
+    history = fit(clf, train_loader, num_epochs=NUM_EPOCHS, valid_loader=test_loader)
+    # history = fit(clf, train_loader, num_epochs=NUM_EPOCHS)
+
+    print(f"\n>> Evaluation:")
+    test_results = evaluate(clf, test_loader)
+    print(", ".join([f"{k}={v:.3f}" for k, v in test_results.items()]))
+
+    print(f"\n>> Prediction:")
+    test_batch = next(iter(test_loader))
+    images = test_batch["image"][:NUM_SAMPLES]
+    labels = test_batch["label"][:NUM_SAMPLES]
+
+    preds = clf.predict(images)
+    for i in range(NUM_SAMPLES):
+        print(f"Target: {labels[i].item()} | Prediction: {preds[i].argmax()}")
