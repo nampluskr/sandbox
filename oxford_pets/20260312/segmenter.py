@@ -176,7 +176,7 @@ if __name__ == "__main__":
         print(f"Train history: {history}")
 
     if 1:
-        print(f"\n>> :")
+        print(f"\n>> FCN_Resnet50:")
         model = build_model(num_classes=3)
         seg = Segmenter(model, num_classes=3, ignore_index=2)
         history = fit(seg, train_loader, num_epochs=NUM_EPOCHS, valid_loader=test_loader)
