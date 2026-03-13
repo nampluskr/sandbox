@@ -19,9 +19,9 @@ from trainer import BaseTrainer
 
 
 class STFPMTrainer(BaseTrainer):
-    def __init__(self, model, loss_fn=None, device=None):
+    def __init__(self, model, loss_fn=None, device=None, evaluator=None):
         loss_fn = STFPMLoss()
-        super().__init__(model, loss_fn, device)
+        super().__init__(model, loss_fn, device, evaluator)
 
     def configure_optimizers(self):
         self.optimizer = torch.optim.SGD(
@@ -43,22 +43,25 @@ class STFPMTrainer(BaseTrainer):
 if __name__ == "__main__":
 
     from mvtec import get_dataloader
-
-    DATA_DIR = "/home/namu/myspace/NAMU/datasets/mvtec"
-    CATEGORY = ["bottle"]
-    BATCH_SIZE = 16
-    IMG_SIZE = 256
-    CROP_SIZE = None
-    NORMALIZE = True
+    from evaluator import Evaluator
 
     train_loader = get_dataloader(
         split="train", 
-        data_dir=DATA_DIR,
-        category=CATEGORY,
-        batch_size=BATCH_SIZE,
-        img_size=IMG_SIZE,
-        crop_size=CROP_SIZE,
-        normalize=NORMALIZE,
+        data_dir="/home/namu/myspace/NAMU/datasets/mvtec",
+        category=["bottle"],
+        batch_size=16,
+        img_size=256,
+        crop_size=None,
+        normalize=True,
+    )
+    test_loader = get_dataloader(
+        split="test", 
+        data_dir="/home/namu/myspace/NAMU/datasets/mvtec",
+        category=["bottle"],
+        batch_size=16,
+        img_size=256,
+        crop_size=None,
+        normalize=True,
     )
 
     model = STFPMModel(
@@ -66,7 +69,8 @@ if __name__ == "__main__":
         layers=["layer1", "layer2", "layer3"],
     )
 
-    trainer = STFPMTrainer(model)
-    trainer.fit(train_loader, max_epochs=5)
+    trainer = STFPMTrainer(model, evaluator=Evaluator)
+    trainer.fit(train_loader, max_epochs=5, valid_loader=test_loader)
 
     del train_loader
+    del test_loader
