@@ -45,7 +45,7 @@ if __name__ == "__main__":
     from evaluator import Evaluator
     from utils import set_seed, set_logging
 
-    EXPERIMENT_NAME = "mvtec_01_stfpm"
+    EXPERIMENT_NAME = "mvtec_09_padim"
     LOG_FILE = f"{EXPERIMENT_NAME}.log"
 
     set_seed(42)
