@@ -1,14 +1,11 @@
 import os
 import sys
 
-# SOURCE_DIR = "/home/namu/myspace/NAMU/defectvad_rev/src"
-SOURCE_DIR = "d:\\Non_Documents\\_github\\defectvad\\src"
+SOURCE_DIR = "/home/namu/myspace/NAMU/defectvad_rev/src"
 if SOURCE_DIR not in sys.path:
     sys.path.insert(0, SOURCE_DIR)
 
-# os.environ["BACKBONE_DIR"] = "/home/namu/myspace/NAMU/backbones"
-os.environ["BACKBONE_DIR"] = "d:\\Non_Documents\\backbones"
-os.environ["DATASET_DIR"] = "e:\\datasets"
+os.environ["BACKBONE_DIR"] = "/home/namu/myspace/NAMU/backbones"
 
 #####################################################################
 # Model test
@@ -57,8 +54,7 @@ if __name__ == "__main__":
 
     train_loader = get_dataloader(
         split="train", 
-        # data_dir="/home/namu/myspace/NAMU/datasets/mvtec",
-        data_dir = "e:\\datasets\\mvtec",
+        data_dir="/home/namu/myspace/NAMU/datasets/mvtec",
         category=["carpet", "grid", "leather", "tile", "wood"],
         batch_size=16,
         img_size=256,
@@ -67,8 +63,7 @@ if __name__ == "__main__":
     )
     test_loader = get_dataloader(
         split="test", 
-        # data_dir="/home/namu/myspace/NAMU/datasets/mvtec",
-        data_dir = "e:\\datasets\\mvtec",
+        data_dir="/home/namu/myspace/NAMU/datasets/mvtec",
         category=["carpet", "grid", "leather", "tile", "wood"],
         batch_size=1,
         img_size=256,
