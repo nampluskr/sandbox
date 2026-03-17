@@ -65,7 +65,7 @@
             padding=False,
             pad_maps=True,
     )
-    trainer = EfficientAdTrainer(model, evaluator=Evaluator(model) if VALIDATE else None)
+    trainer = EfficientAdTrainer(model, evaluator=Evaluator(model) if VALIDATE else None, model_size="small")
 ```
 
 #### 4. CFlow
