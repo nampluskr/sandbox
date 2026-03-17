@@ -9,6 +9,23 @@ SCRIPTS = [
     "mvtec_01_stfpm_resnet50.py",
     "mvtec_02_reversedistill_resnet18.py",
     "mvtec_02_reversedistill_wideresnet50.py",
+    "mvtec_03_efficientad_small.py",
+    "mvtec_03_efficientad_medium.py",
+    "mvtec_05_fastflow_resnet18.py",
+    "mvtec_05_fastflow_wideresnet50.py",
+    "mvtec_05_fastflow_deit.py",          
+    "mvtec_05_fastflow_cait.py",
+    "mvtec_06_csflow_efficientnetb5.py",
+    "mvtec_07_uflow_resnet18.py",
+    "mvtec_07_uflow_wideresnet50.py",
+    "mvtec_07_uflow_mcait.py",
+    "mvtec_08_patchcore_resnet18.py",
+    "mvtec_08_patchcore_wideresnet50.py",
+    "mvtec_09_padim_resnet18.py",
+    "mvtec_09_padim_wideresnet50.py",
+    "mvtec_10_cfa_wideresnet50.py",
+    "mvtec_04_cflow_resnet18.py",
+    "mvtec_04_cflow_wideresnet50.py",
 ]
 
 if __name__ == "__main__":
