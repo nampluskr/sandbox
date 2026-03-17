@@ -31,7 +31,7 @@ if __name__ == "__main__":
                 [sys.executable, script],
                 stdout=sys.stdout,  # Directly stream to console
                 stderr=sys.stderr,  # Directly stream to console
-                timeout=1800        # 30 minutes timeout
+                # timeout=1800        # 30 minutes timeout
             )
             elapsed = time.time() - start_time
             hours, remainders = divmod(int(elapsed), 3600)
