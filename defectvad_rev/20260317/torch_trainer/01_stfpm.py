@@ -1,5 +1,3 @@
-# src/defectvad/models/stfpm/torch_trainer.py
-
 import torch
 
 from defectvad.common.trainer import BaseTrainer
