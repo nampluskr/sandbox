@@ -1,4 +1,5 @@
 import os
+import platform
 from glob import glob
 import numpy as np
 from PIL import Image
@@ -134,16 +135,24 @@ def collate_fn(batch):
 def get_dataloader(split, data_dir, category, batch_size=16, img_size=256, crop_size=None, normalize=True):
     transform = get_transform(split, img_size=img_size, crop_size=crop_size, normalize=normalize)
     dataset = MVTecDataset(split, data_dir, category, transform=transform)
-    kwargs = {
-        "batch_size": batch_size,
-        "shuffle": split == "train",
-        "drop_last": split == "train",
-        "collate_fn": collate_fn,
-        "pin_memory": True,
-        "num_workers": 8,
-        # "persistent_workers": split == "train",
-        # "prefetch_factor": 2,
-    }
+    if platform.system() == "Linux":
+        kwargs = {
+            "batch_size": batch_size,
+            "shuffle": split == "train",
+            "drop_last": split == "train",
+            "collate_fn": collate_fn,
+            "pin_memory": True,
+            "num_workers": 8,
+            # "persistent_workers": split == "train",
+            # "prefetch_factor": 2,
+        }
+    else:
+        kwargs = {
+            "batch_size": batch_size,
+            "shuffle": split == "train",
+            "drop_last": split == "train",
+            "collate_fn": collate_fn,
+        }
     return DataLoader(dataset, **kwargs)
 
 
